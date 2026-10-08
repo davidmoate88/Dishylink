@@ -131,8 +131,13 @@
       }
       /* bare=1: no chrome of its own, for a host page that frames it inside
          one of its own cards. The iframe shows the host's background through. */
+      :root[data-bare],
       :root[data-bare] body {
         background: transparent;
+      }
+      /* The host card carries its own heading. */
+      :root[data-bare] .title {
+        display: none;
       }
       :root[data-bare] a.card {
         padding: 0;

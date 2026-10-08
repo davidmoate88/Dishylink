@@ -85,8 +85,10 @@ export function summarize(
   };
 }
 
-/** "1m 30s", "59m 50s", "2h 5m" — seconds kept below an hour. */
+/** "<1s", "1m 30s", "59m 50s", "2h 5m" — seconds kept below an hour. */
 export function formatDuration(ms: number): string {
+  // The dish logs real sub-second drops; "0s" would read as nothing happened.
+  if (ms > 0 && ms < 500) return "<1s";
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
