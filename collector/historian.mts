@@ -45,6 +45,8 @@ import {
   decodeOutageEvents,
   decodeWifiHistoryEvents,
   isStarlinkOutage,
+  outageEventKind,
+  outageEventLabel,
   readRouterLatencyMs,
   readRouterPingSuccessPercent,
   TelemetryAccumulator,
@@ -1922,7 +1924,17 @@ export function handleRequest(request: IncomingMessage, response: ServerResponse
   }
   if (url.pathname === "/api/outages") {
     response.setHeader("Content-Type", "application/json");
-    response.end(JSON.stringify({ events: eventStore.all() }));
+    // kind and label ride along so a consumer outside this codebase can tell an
+    // outage from a Wi-Fi handoff without copying the event catalogue.
+    response.end(
+      JSON.stringify({
+        events: eventStore.all().map((event) => ({
+          ...event,
+          kind: outageEventKind(event.cause),
+          label: outageEventLabel(event.cause),
+        })),
+      }),
+    );
     return;
   }
   if (url.pathname === "/api/obstruction/snapshots") {

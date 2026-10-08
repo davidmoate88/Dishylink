@@ -242,6 +242,10 @@ export class NtfyNotifier {
 
   alerts(transitions: readonly AlertTransition[]): void {
     for (const transition of transitions) {
+      // The link watch reports the same outage once, on recovery, with its
+      // length and cause. This alert's fired/cleared pair would only ever reach
+      // a phone together, after the link is back, as two more messages.
+      if (transition.source === "system" && transition.key === "starlinkOutage") continue;
       const id = `${transition.source}:${transition.key}`;
       const firedAt = this.firedAt.get(id) ?? null;
       if (transition.kind === "fired") this.firedAt.set(id, transition.atMs);

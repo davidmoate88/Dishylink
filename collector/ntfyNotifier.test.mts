@@ -175,6 +175,15 @@ describe("NtfyNotifier delivery", () => {
     });
   });
 
+  it("leaves the outage alert to the link watch's single recovery message", () => {
+    const fetch = vi.fn(async () => new Response("{}", { status: 200 }));
+    const notifier = new NtfyNotifier(config, { events: () => [], fetch, now: () => T0 });
+    const spec = SYSTEM_ALERTS.starlinkOutage;
+    notifier.alerts([{ kind: "fired", source: "system", key: spec.key, atMs: T0, spec }]);
+    expect(notifier.pending).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("drops a message the server refuses instead of blocking the queue", async () => {
     const fetch = vi.fn(async () => new Response("", { status: 403 }));
     const notifier = new NtfyNotifier(config, { events: () => [], fetch, now: () => T0 });
