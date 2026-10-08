@@ -57,7 +57,7 @@ import { LatencyStore, type LatencyMinuteBucket } from "./latencyStore.mts";
 import { foldSamplesToLatencyMinutes } from "../core/latencyBuckets.ts";
 import { summarizeLatency } from "../core/latencySummary.ts";
 import { ThermalStore } from "./thermalStore.mts";
-import { EventStore } from "./eventStore.mts";
+import { EventStore, type StoredEvent } from "./eventStore.mts";
 import { ClientStore, type ClientReading } from "./clientStore.mts";
 import { ClientWindow } from "./clientWindow.mts";
 import { resolveRows, foldMinuteCollisions } from "../core/clientHistory.ts";
@@ -316,6 +316,7 @@ async function getStatusAlerts(): Promise<{
   alerts: Record<string, boolean>;
   ethSpeedMbps?: number;
   routerPresence: RouterPresence;
+  summary: DishStatusSummary | null;
 }> {
   const json = (await deviceCall(DISH_URL, GET_STATUS_FIELD)) as {
     dishGetStatus?: DishStatusJson;
@@ -327,8 +328,42 @@ async function getStatusAlerts(): Promise<{
     // needs the negotiated speed to tell a real dead link from a latched flag.
     ethSpeedMbps: status?.ethSpeedMbps,
     routerPresence: routerPresence(status),
+    summary: status ? summarizeDishStatus(status, Date.now()) : null,
   };
 }
+
+/**
+ * The few get_status fields a home dashboard shows next to the samples — how
+ * long the dish has been up, whether it is obstructed right now, its firmware,
+ * and which alert flags are set. Read off the reply pollAlerts already fetches
+ * every cycle and served on /api/status, so a consumer gets them without
+ * putting another poller on the dish.
+ */
+export interface DishStatusSummary {
+  atMs: number;
+  uptimeS: number | null;
+  currentlyObstructed: boolean;
+  fractionObstructed: number;
+  softwareVersion: string | null;
+  /** Keys of the alert flags currently set. */
+  alerts: string[];
+}
+
+function summarizeDishStatus(status: DishStatusJson, atMs: number): DishStatusSummary {
+  const uptime = Number(status.deviceState?.uptimeS);
+  return {
+    atMs,
+    uptimeS: Number.isFinite(uptime) ? uptime : null,
+    currentlyObstructed: status.obstructionStats?.currentlyObstructed === true,
+    fractionObstructed: status.obstructionStats?.fractionObstructed ?? 0,
+    softwareVersion: status.deviceInfo?.softwareVersion ?? null,
+    alerts: Object.entries(status.alerts ?? {})
+      .filter(([, set]) => set === true)
+      .map(([key]) => key),
+  };
+}
+
+let latestDishStatus: DishStatusSummary | null = null;
 
 /**
  * The router's whole get_status. One call, because two things here want it: the
@@ -954,6 +989,26 @@ export function onAlertTransitions(listener: (transitions: AlertTransition[]) =>
 }
 
 /**
+ * Each poll's decoded sample window (the dish's last ~15 minutes, oldest
+ * first). Polls overlap, so a listener sees most samples many times and must
+ * track what it has already consumed by timestamp. For a host that watches the
+ * link itself — the ntfy notifier — rather than reading it back from /api.
+ */
+const sampleListeners = new Set<(samples: readonly TelemetrySample[]) => void>();
+
+export function onSamples(listener: (samples: readonly TelemetrySample[]) => void): () => void {
+  sampleListeners.add(listener);
+  return () => {
+    sampleListeners.delete(listener);
+  };
+}
+
+/** Every recorded dish and router event, as /api/outages serves them. */
+export function recordedEvents(): readonly StoredEvent[] {
+  return eventStore.all();
+}
+
+/**
  * A live throughput feed for a readout that outlives an open window — the desktop
  * menu-bar number shown while the dashboard is closed.
  *
@@ -1202,6 +1257,7 @@ async function pollAlerts(): Promise<void> {
   const observation: AlertObservation = {};
   try {
     const dishStatus = await getStatusAlerts();
+    latestDishStatus = dishStatus.summary;
     observation.dish = {
       alerts: dishStatus.alerts,
       ethSpeedMbps: dishStatus.ethSpeedMbps,
@@ -1498,6 +1554,7 @@ async function poll(): Promise<void> {
     },
     window,
   );
+  for (const listener of sampleListeners) listener(window.samples);
   const perMinute = foldSamplesToMinutes(window.samples);
   // Fold the same window's latency into per-minute histogram buckets so day/week
   // quality can be summarised without the 6h raw-sample window.
@@ -1916,6 +1973,11 @@ export function handleRequest(request: IncomingMessage, response: ServerResponse
     }
     response.setHeader("Content-Type", "application/json");
     response.end(JSON.stringify({ ips, macs }));
+    return;
+  }
+  if (url.pathname === "/api/status") {
+    response.setHeader("Content-Type", "application/json");
+    response.end(JSON.stringify({ dish: latestDishStatus }));
     return;
   }
   if (url.pathname === "/api/health") {

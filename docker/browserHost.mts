@@ -25,6 +25,7 @@ import { identityFromEnv } from "../core/hostNetworkIdentity.ts";
 import type { RouterClientUpdate } from "../core/routerClientUpdate.ts";
 import { CollectorBusyError } from "../collector/collectorLock.mts";
 import { isLocalOrigin } from "../collector/localOrigin.mts";
+import { NtfyNotifier, ntfyConfigFromEnv } from "../collector/ntfyNotifier.mts";
 import {
   createFileCloudHandler,
   dispatchCloudRequest,
@@ -305,6 +306,13 @@ try {
     const message = (body as { message?: string })?.message ?? `HTTP ${status}`;
     throw new Error(status === 428 ? "No Starlink account connected" : message);
   });
+  const ntfy = ntfyConfigFromEnv();
+  if (ntfy) {
+    const notifier = new NtfyNotifier(ntfy, { events: () => historian.recordedEvents() });
+    historian.onAlertTransitions((transitions) => notifier.alerts(transitions));
+    historian.onSamples((samples) => notifier.samples(samples));
+    console.log(`[browser-host] notifying ntfy topic "${ntfy.topic}" at ${ntfy.serverUrl}`);
+  }
   // Last: the first poll can reach a rule that owes a pause.
   historian.start();
   handleRequest = historian.handleRequest;

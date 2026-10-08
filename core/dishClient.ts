@@ -85,6 +85,8 @@ export interface DishDeviceInfoJson {
 }
 
 export interface DishObstructionStatsJson {
+  /** Absent (false) unless the dish is obstructed at this moment. */
+  currentlyObstructed?: boolean;
   fractionObstructed?: number;
   validS?: number;
   avgProlongedObstructionIntervalS?: number | "NaN" | "Infinity";

@@ -12,6 +12,8 @@ User=dishylink
 Group=dishylink
 WorkingDirectory=/opt/dishylink
 EnvironmentFile=/etc/dishylink/dishylink.env
+# Secrets (the ntfy token), mode 600; optional.
+EnvironmentFile=-/etc/dishylink/ntfy.env
 ExecStart=/usr/bin/node --import tsx docker/browserHost.mts
 Restart=on-failure
 RestartSec=10
