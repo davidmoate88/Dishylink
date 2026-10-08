@@ -1,20 +1,47 @@
 #!/usr/bin/env bash
-# Runs inside the CT (installed at /usr/local/sbin/dishylink-install): unpacks
-# the bundle deploy.sh pushed to /tmp, installs runtime packages, swaps it in
-# and restarts. The previous release stays at /opt/dishylink.old for rollback.
+# Runs inside the CT (installed at /usr/local/sbin/dishylink-install BUNDLE):
+# unpacks the bundle deploy.sh pushed, installs runtime packages, swaps it in
+# and restarts. If the new release doesn't come up healthy, the previous one
+# is put back and restarted, so a bad deploy never leaves the recorder down.
 set -euo pipefail
+BUNDLE="${1:?usage: dishylink-install /path/to/bundle.tgz}"
+exec 9>/run/dishylink-install.lock
+flock -n 9 || { echo "another install is running" >&2; exit 1; }
+
 rm -rf /opt/dishylink.new
 mkdir -p /opt/dishylink.new
-tar -xzf /tmp/dishylink.tgz -C /opt/dishylink.new
-rm /tmp/dishylink.tgz
+tar -xzf "$BUNDLE" -C /opt/dishylink.new
+rm -f "$BUNDLE"
 cd /opt/dishylink.new
 npm install --omit=dev --ignore-scripts --no-audit --no-fund >/dev/null
 chown -R root:root /opt/dishylink.new
 # The bundle root comes from mktemp -d (0700); the service runs as dishylink.
 chmod -R u=rwX,go=rX /opt/dishylink.new
+cd /
+
 rm -rf /opt/dishylink.old
 if [ -d /opt/dishylink ]; then mv /opt/dishylink /opt/dishylink.old; fi
 mv /opt/dishylink.new /opt/dishylink
 systemctl restart dishylink
-sleep 5
-systemctl is-active dishylink
+
+healthy() {
+  for _ in $(seq 1 30); do
+    curl -fs -o /dev/null http://127.0.0.1:8080/api/health && return 0
+    sleep 2
+  done
+  return 1
+}
+
+if healthy; then
+  echo "active"
+  exit 0
+fi
+echo "new release failed its health check" >&2
+if [ -d /opt/dishylink.old ]; then
+  rm -rf /opt/dishylink.failed
+  mv /opt/dishylink /opt/dishylink.failed
+  mv /opt/dishylink.old /opt/dishylink
+  systemctl restart dishylink
+  echo "rolled back to the previous release (failed one kept at /opt/dishylink.failed)" >&2
+fi
+exit 1

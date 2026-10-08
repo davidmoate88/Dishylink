@@ -27,7 +27,9 @@ cat > "$stage/package.json" <<'JSON'
 JSON
 tar -czf "$bundle" -C "$stage" .
 
-# pct push needs the file on the node, so stream it there first.
-"$HOP" "cat > /tmp/dishylink.tgz" < "$bundle"
-"$HOP" "pct push $CT /tmp/dishylink.tgz /tmp/dishylink.tgz && rm /tmp/dishylink.tgz"
-"$HOP" "pct exec $CT -- /usr/local/sbin/dishylink-install"
+# pct push needs the file on the node, so stream it there first. A per-run
+# name keeps two deploys through the same node from swapping bundles.
+remote="/tmp/dishylink-$CT-$(date +%s)-$$.tgz"
+"$HOP" "cat > $remote" < "$bundle"
+"$HOP" "pct push $CT $remote $remote; status=\$?; rm -f $remote; exit \$status"
+"$HOP" "pct exec $CT -- /usr/local/sbin/dishylink-install $remote"

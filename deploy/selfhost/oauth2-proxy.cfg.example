@@ -30,5 +30,8 @@ cookie_csrf_per_request       = true
 cookie_csrf_per_request_limit = 5
 cookie_csrf_expire            = "1h"
 cookie_csrf_samesite          = "lax"
-# The manifest and icons must load before sign-in for "Add to Home Screen".
-skip_auth_routes        = ["GET=^/manifest\\.webmanifest$", "GET=^/icon/[0-9]+\\.png$", "GET=^/favicon\\.svg$"]
+# No skip_auth_routes. With reverse_proxy on, oauth2-proxy matches them against
+# X-Forwarded-Uri, which a client can send through the tunnel: a forged
+# "X-Forwarded-Uri: /manifest.webmanifest" on GET /api/samples was served
+# without sign-in. The page links its manifest with crossorigin=use-credentials,
+# so "Add to Home Screen" works once signed in.
