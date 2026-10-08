@@ -9,6 +9,7 @@
  */
 export function isLocalOrigin(origin?: string): boolean {
   if (!origin) return true;
+  if (trustedOrigins().has(origin.toLowerCase())) return true;
   let hostname: string;
   try {
     hostname = new URL(origin).hostname.replace(/^\[|\]$/g, "");
@@ -26,4 +27,22 @@ export function isLocalOrigin(origin?: string): boolean {
   if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname)) return true;
   if (/^169\.254\./.test(hostname)) return true;
   return /^f[cd][0-9a-f]{2}:/i.test(hostname);
+}
+
+/**
+ * Exact public origins (scheme + host + port) to treat as local, from the
+ * comma-separated `DISHYLINK_TRUSTED_ORIGINS`. For a self-hosted dashboard
+ * published through a tunnel behind its own sign-in, e.g.
+ * `https://dishy.example.com`: the sign-in proxy is what stops a stranger, and
+ * this lets the signed-in page make the writes a LAN page can. Read per call so
+ * a test can set it; parsing a short env string costs nothing next to a request.
+ */
+function trustedOrigins(): Set<string> {
+  const raw = process.env.DISHYLINK_TRUSTED_ORIGINS ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((entry) => entry.trim().replace(/\/+$/, "").toLowerCase())
+      .filter(Boolean),
+  );
 }

@@ -41,6 +41,10 @@ const DIST = resolve(process.env.BROWSER_DIST ?? "dist");
 const DISH_ORIGIN = originOf(process.env.DISH_URL ?? DISH_LAN_HANDLE_URL);
 const ROUTER_URL_OVERRIDE = process.env.ROUTER_URL ?? null;
 const CELESTRAK_ORIGIN = "https://celestrak.org";
+// Space-separated sources allowed to frame these pages (CSP frame-ancestors),
+// e.g. "http://192.168.1.50:8000 https://hub.example.com" for a home dashboard
+// that embeds /embed.html. Unset: no header, as before; "'self'" is always added.
+const FRAME_ANCESTORS = process.env.FRAME_ANCESTORS?.trim() || null;
 const SPEEDTEST_ORIGIN = "https://speed.cloudflare.com";
 
 const SKIP_RESPONSE_HEADERS = new Set([
@@ -57,6 +61,7 @@ const MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json",
+  ".webmanifest": "application/manifest+json",
   ".map": "application/json",
   ".png": "image/png",
   ".svg": "image/svg+xml",
@@ -157,10 +162,11 @@ function safeFile(urlPath: string): string | null {
 
 function serveFile(filePath: string, response: ServerResponse): void {
   response.statusCode = 200;
-  response.setHeader(
-    "content-type",
-    MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream",
-  );
+  const extension = extname(filePath).toLowerCase();
+  response.setHeader("content-type", MIME[extension] ?? "application/octet-stream");
+  if (FRAME_ANCESTORS && extension === ".html") {
+    response.setHeader("content-security-policy", `frame-ancestors 'self' ${FRAME_ANCESTORS}`);
+  }
   createReadStream(filePath).pipe(response);
 }
 

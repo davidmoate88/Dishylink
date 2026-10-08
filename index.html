@@ -11,6 +11,15 @@
       rel="stylesheet"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Installable as a home-screen app. use-credentials so the manifest request
+         carries the sign-in cookie when a proxy guards the whole origin. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <link rel="apple-touch-icon" href="/icon/180.png" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Dishylink" />
     <!-- App sets data-theme in an effect, which lands after the first paint — on a
          dark-by-default dashboard that showed as a white flash on every load. Same
          key, same default and same resolution of "system" as src/lib/theme.ts. -->
