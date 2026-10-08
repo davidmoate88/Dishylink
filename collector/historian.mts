@@ -991,9 +991,8 @@ export function onAlertTransitions(listener: (transitions: AlertTransition[]) =>
 }
 
 /**
- * Each poll's decoded sample window (the dish's last ~15 minutes, oldest
- * first). Polls overlap, so a listener sees most samples many times and must
- * track what it has already consumed by timestamp. For a host that watches the
+ * The samples each poll appended to the recorded window, oldest first — each
+ * sample once, as the dish's own counter decides. For a host that watches the
  * link itself — the ntfy notifier — rather than reading it back from /api.
  */
 const sampleListeners = new Set<(samples: readonly TelemetrySample[]) => void>();
@@ -1547,6 +1546,9 @@ async function poll(): Promise<void> {
   // snapshot alongside the dish's and answers the same 15M/1H/6H filter.
   const now = Date.now();
   const window = decodeHistoryWindow(history, now);
+  // The samples this poll appended — decided by the dish's sample counter, so a
+  // stalled ring re-read at a later clock time is not mistaken for new data.
+  const previousNewest = latestSamples.at(-1);
   latestSamples = sampleWindow.ingest(
     history,
     now,
@@ -1556,7 +1558,9 @@ async function poll(): Promise<void> {
     },
     window,
   );
-  for (const listener of sampleListeners) listener(window.samples);
+  const freshFrom = previousNewest ? latestSamples.lastIndexOf(previousNewest) + 1 : 0;
+  const freshSamples = latestSamples.slice(freshFrom);
+  if (freshSamples.length) for (const listener of sampleListeners) listener(freshSamples);
   const perMinute = foldSamplesToMinutes(window.samples);
   // Fold the same window's latency into per-minute histogram buckets so day/week
   // quality can be summarised without the 6h raw-sample window.

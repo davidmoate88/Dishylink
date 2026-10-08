@@ -15,6 +15,7 @@
 import { outageEventKind, outageEventLabel, type TelemetrySample } from "../core/telemetry.ts";
 import type { AlertTransition } from "../core/alertEngine.ts";
 import type { StoredEvent } from "./eventStore.mts";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
 export interface NtfyConfig {
   /** Server base URL, e.g. http://192.168.1.34 — not the topic URL. */
@@ -61,11 +62,16 @@ function failing(sample: TelemetrySample): boolean {
   return sample.latencyMs === null || sample.dropRate >= 0.99;
 }
 
+/** Samples are 1 Hz; a longer silence means the dish wasn't heard at all. */
+const GAP_MS = 5_000;
+
 /**
- * Turns the overlapping per-poll sample windows into down/up transitions.
- * Samples at or before the newest one already seen are skipped, so re-seeing a
- * window changes nothing; samples from before the watch started are ignored, so
- * a restart doesn't re-announce an outage still visible in the dish's buffer.
+ * Turns the recorder's 1 Hz samples into down/up transitions. Samples at or
+ * before the newest one already seen are skipped; samples from before the watch
+ * started are ignored, so a restart doesn't re-announce an outage still in the
+ * dish's buffer (an outage already declared survives a restart via restore()).
+ * A gap in the samples breaks a run: time the dish wasn't heard counts toward
+ * neither the down threshold nor the recovery hold.
  */
 export class LinkWatch {
   private lastMs: number;
@@ -85,11 +91,25 @@ export class LinkWatch {
     return this.downSince !== null;
   }
 
+  /** When the current outage began, if one has been declared. */
+  get downSinceMs(): number | null {
+    return this.downSince;
+  }
+
+  /** Carry a declared outage across a restart. */
+  restore(downSinceMs: number): void {
+    this.downSince = downSinceMs;
+  }
+
   ingest(samples: readonly TelemetrySample[]): LinkTransition[] {
     const out: LinkTransition[] = [];
     for (const sample of samples) {
       const at = sample.timestampMs;
       if (at <= this.lastMs) continue;
+      if (at - this.lastMs > GAP_MS) {
+        this.failingSince = null;
+        this.healthySince = null;
+      }
       this.lastMs = at;
       if (failing(sample)) {
         this.healthySince = null;
@@ -209,9 +229,23 @@ export interface NotifierOptions {
   /** Wait for the dish's event log to catch up before naming a cause. */
   causeDelayMs?: number;
   retryMs?: number;
+  /**
+   * Where to keep undelivered messages and the outage in progress, so a restart
+   * neither drops an alert raised while ntfy was unreachable nor forgets an
+   * outage it has already declared. Omitted (tests), state is memory-only.
+   */
+  statePath?: string;
 }
 
 const QUEUE_LIMIT = 50;
+
+interface PersistedState {
+  queue: NtfyMessage[];
+  downSinceMs: number | null;
+  firedAt: [string, number][];
+  /** Recovered outages whose message waits on the event log catching up. */
+  recoveries: { startMs: number; endMs: number }[];
+}
 
 export class NtfyNotifier {
   private readonly watch: LinkWatch;
@@ -220,6 +254,7 @@ export class NtfyNotifier {
   private sending = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly fetchImpl: Fetch;
+  private recoveries: { startMs: number; endMs: number }[] = [];
 
   constructor(
     private readonly config: NtfyConfig,
@@ -227,17 +262,34 @@ export class NtfyNotifier {
   ) {
     this.fetchImpl = options.fetch ?? ((url, init) => fetch(url, init));
     this.watch = new LinkWatch(config.downAfterMs, config.upAfterMs, (options.now ?? Date.now)());
+    const saved = this.load();
+    if (saved) {
+      this.queue.push(...saved.queue);
+      if (saved.downSinceMs !== null) this.watch.restore(saved.downSinceMs);
+      for (const [id, atMs] of saved.firedAt) this.firedAt.set(id, atMs);
+      for (const recovery of saved.recoveries) this.scheduleRecovery(recovery);
+      if (this.queue.length) void this.flush();
+    }
   }
 
   samples(samples: readonly TelemetrySample[]): void {
+    const wasDown = this.watch.isDown;
     for (const transition of this.watch.ingest(samples)) {
-      if (transition.kind !== "up") continue;
-      const { startMs, endMs } = transition;
-      setTimeout(() => {
-        const causes = outageCauses(this.options.events(), startMs, endMs);
-        this.enqueue(restoredMessage(startMs, endMs, causes, this.options.timeZone));
-      }, this.options.causeDelayMs ?? 15_000).unref?.();
+      if (transition.kind === "up") this.scheduleRecovery(transition);
     }
+    if (this.watch.isDown !== wasDown) this.save();
+  }
+
+  private scheduleRecovery(recovery: { startMs: number; endMs: number }): void {
+    this.recoveries.push(recovery);
+    this.save();
+    setTimeout(() => {
+      this.recoveries = this.recoveries.filter((pending) => pending !== recovery);
+      const causes = outageCauses(this.options.events(), recovery.startMs, recovery.endMs);
+      this.enqueue(
+        restoredMessage(recovery.startMs, recovery.endMs, causes, this.options.timeZone),
+      );
+    }, this.options.causeDelayMs ?? 15_000).unref?.();
   }
 
   alerts(transitions: readonly AlertTransition[]): void {
@@ -253,12 +305,17 @@ export class NtfyNotifier {
       const message = alertMessage(transition, firedAt, this.options.timeZone);
       if (message) this.enqueue(message);
     }
+    this.save();
   }
 
   enqueue(message: NtfyMessage): void {
     this.queue.push(message);
-    // A long unreachable spell must not grow without bound; the oldest go first.
-    if (this.queue.length > QUEUE_LIMIT) this.queue.splice(0, this.queue.length - QUEUE_LIMIT);
+    // A long unreachable spell must not grow without bound; the oldest go
+    // first — but never the head while it is being posted, or the shift() that
+    // follows its delivery would remove the wrong message.
+    const excess = this.queue.length - QUEUE_LIMIT;
+    if (excess > 0) this.queue.splice(this.sending ? 1 : 0, excess);
+    this.save();
     void this.flush();
   }
 
@@ -273,6 +330,7 @@ export class NtfyNotifier {
           return;
         }
         this.queue.shift();
+        this.save();
       }
     } finally {
       this.sending = false;
@@ -281,6 +339,34 @@ export class NtfyNotifier {
 
   get pending(): number {
     return this.queue.length;
+  }
+
+  private load(): PersistedState | null {
+    if (!this.options.statePath || !existsSync(this.options.statePath)) return null;
+    try {
+      return JSON.parse(readFileSync(this.options.statePath, "utf8")) as PersistedState;
+    } catch (error) {
+      console.warn(`[ntfy] ignoring unreadable state: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
+  private save(): void {
+    const path = this.options.statePath;
+    if (!path) return;
+    const state: PersistedState = {
+      queue: this.queue,
+      downSinceMs: this.watch.downSinceMs,
+      firedAt: [...this.firedAt],
+      recoveries: this.recoveries,
+    };
+    try {
+      // temp + rename, so a crash mid-write never leaves half a file.
+      writeFileSync(`${path}.tmp`, JSON.stringify(state));
+      renameSync(`${path}.tmp`, path);
+    } catch (error) {
+      console.warn(`[ntfy] could not save state: ${(error as Error).message}`);
+    }
   }
 
   private scheduleRetry(): void {

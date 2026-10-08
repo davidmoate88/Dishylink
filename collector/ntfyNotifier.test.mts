@@ -214,3 +214,90 @@ describe("NtfyNotifier delivery", () => {
     expect(body.title).toBe("Starlink was down for 1m");
   });
 });
+
+describe("review fixes", () => {
+  afterEach(() => vi.useRealTimers());
+
+  const config: NtfyConfig = {
+    serverUrl: "http://ntfy.test",
+    topic: "starlink",
+    token: null,
+    clickUrl: null,
+    downAfterMs: 30_000,
+    upAfterMs: 10_000,
+  };
+
+  it("a silence in the samples counts toward neither going down nor coming back", () => {
+    const watch = new LinkWatch(30_000, 10_000, T0);
+    // Failing either side of an hour with no samples: not 3600 s of failure.
+    expect(watch.ingest([...run(1, 1, false), ...run(3601, 1, false)])).toEqual([]);
+    // Declared down, then healthy either side of a gap: the hold restarts.
+    const down = new LinkWatch(30_000, 10_000, T0);
+    down.ingest(run(1, 40, false));
+    expect(down.ingest([...run(41, 1, true), ...run(3600, 1, true)])).toEqual([]);
+    expect(down.isDown).toBe(true);
+  });
+
+  it("evicting for space never drops the message being posted", async () => {
+    let release!: () => void;
+    const delivered: string[] = [];
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      const { title } = JSON.parse(init.body as string);
+      if (title === "m1") await new Promise<void>((resolve) => (release = resolve));
+      delivered.push(title);
+      return new Response("{}", { status: 200 });
+    });
+    const notifier = new NtfyNotifier(config, { events: () => [], fetch, now: () => T0 });
+    for (let i = 1; i <= 51; i++) {
+      notifier.enqueue({ title: `m${i}`, message: "", priority: 3, tags: [] });
+      if (i === 1) await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    }
+    release();
+    await vi.waitFor(() => expect(notifier.pending).toBe(0));
+    // m1 was in flight; one of the waiting ones (m2) made way for m51.
+    expect(delivered[0]).toBe("m1");
+    expect(delivered).not.toContain("m2");
+    expect(delivered).toContain("m3");
+    expect(delivered.at(-1)).toBe("m51");
+  });
+
+  it("keeps undelivered messages and a declared outage across a restart", async () => {
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const statePath = join(mkdtempSync(join(tmpdir(), "ntfy-")), "state.json");
+    const offline = vi.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+
+    const first = new NtfyNotifier(config, {
+      events: () => [],
+      fetch: offline,
+      now: () => T0,
+      statePath,
+      retryMs: 60_000,
+    });
+    first.samples(run(1, 40, false)); // declared down
+    first.enqueue({ title: "queued", message: "", priority: 3, tags: [] });
+    await vi.waitFor(() => expect(offline).toHaveBeenCalled());
+
+    vi.useFakeTimers();
+    const delivered: string[] = [];
+    const online = vi.fn(async (_url: string, init: RequestInit) => {
+      delivered.push(JSON.parse(init.body as string).title);
+      return new Response("{}", { status: 200 });
+    });
+    // Restarted after the outage began: recovery 20 s later still reports it.
+    const second = new NtfyNotifier(config, {
+      events: () => [],
+      fetch: online,
+      now: () => T0 + 41_000,
+      statePath,
+      causeDelayMs: 100,
+      timeZone: "UTC",
+    });
+    second.samples([...run(42, 2, false), ...run(44, 15, true)]);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(delivered).toEqual(["queued", "Starlink was down for 43s"]);
+  });
+});

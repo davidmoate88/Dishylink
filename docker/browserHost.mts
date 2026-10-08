@@ -308,7 +308,10 @@ try {
   });
   const ntfy = ntfyConfigFromEnv();
   if (ntfy) {
-    const notifier = new NtfyNotifier(ntfy, { events: () => historian.recordedEvents() });
+    const notifier = new NtfyNotifier(ntfy, {
+      events: () => historian.recordedEvents(),
+      statePath: join(DATA_DIR, "ntfy-state.json"),
+    });
     historian.onAlertTransitions((transitions) => notifier.alerts(transitions));
     historian.onSamples((samples) => notifier.samples(samples));
     console.log(`[browser-host] notifying ntfy topic "${ntfy.topic}" at ${ntfy.serverUrl}`);
