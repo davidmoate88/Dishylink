@@ -4,7 +4,9 @@
 // opens the full dashboard in the top window.
 //
 // Query parameters: open (http/https URL the card links to; default "/"),
-// theme (dark | light | system, applied before paint by embed.html), and
+// target (blank opens it in a new tab instead of replacing the framing page),
+// theme (dark | light | system) and bare=1 (no card chrome), both applied
+// before paint by embed.html, and
 // minutes (sparkline window, 5–60; default 15).
 import type { TelemetrySample } from "@core/telemetry";
 import {
@@ -27,7 +29,13 @@ const STATE_LABEL: Record<LinkState, [string, string]> = {
 const params = new URLSearchParams(location.search);
 const minutes = Math.min(60, Math.max(5, Number(params.get("minutes")) || 15));
 const open = params.get("open");
-if (open && /^https?:\/\//i.test(open)) byId<HTMLAnchorElement>("card").href = open;
+const card = byId<HTMLAnchorElement>("card");
+if (open && /^https?:\/\//i.test(open)) card.href = open;
+// A wall display shouldn't be navigated away from its own dashboard.
+if (params.get("target") === "blank") {
+  card.target = "_blank";
+  card.rel = "noopener";
+}
 
 let samples: TelemetrySample[] = [];
 let events: RecordedEvent[] = [];

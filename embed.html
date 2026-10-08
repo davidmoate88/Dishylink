@@ -129,6 +129,17 @@
         color: var(--ink-muted);
         font-size: 12px;
       }
+      /* bare=1: no chrome of its own, for a host page that frames it inside
+         one of its own cards. The iframe shows the host's background through. */
+      :root[data-bare] body {
+        background: transparent;
+      }
+      :root[data-bare] a.card {
+        padding: 0;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+      }
       @media (max-width: 340px) {
         .tiles {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -137,7 +148,9 @@
     </style>
     <script>
       (function () {
-        var theme = new URLSearchParams(location.search).get("theme") || "system";
+        var params = new URLSearchParams(location.search);
+        if (params.get("bare") === "1") document.documentElement.dataset.bare = "";
+        var theme = params.get("theme") || "system";
         if (theme === "system") {
           theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
         }

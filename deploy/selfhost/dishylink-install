@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Runs inside the CT (installed at /usr/local/sbin/dishylink-install): unpacks
+# the bundle deploy.sh pushed to /tmp, installs runtime packages, swaps it in
+# and restarts. The previous release stays at /opt/dishylink.old for rollback.
+set -euo pipefail
+rm -rf /opt/dishylink.new
+mkdir -p /opt/dishylink.new
+tar -xzf /tmp/dishylink.tgz -C /opt/dishylink.new
+rm /tmp/dishylink.tgz
+cd /opt/dishylink.new
+npm install --omit=dev --ignore-scripts --no-audit --no-fund >/dev/null
+chown -R root:root /opt/dishylink.new
+# The bundle root comes from mktemp -d (0700); the service runs as dishylink.
+chmod -R u=rwX,go=rX /opt/dishylink.new
+rm -rf /opt/dishylink.old
+if [ -d /opt/dishylink ]; then mv /opt/dishylink /opt/dishylink.old; fi
+mv /opt/dishylink.new /opt/dishylink
+systemctl restart dishylink
+sleep 5
+systemctl is-active dishylink

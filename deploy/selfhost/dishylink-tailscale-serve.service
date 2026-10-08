@@ -1,0 +1,15 @@
+# Publishes the dashboard on the tailnet at https://dishylink.<tailnet>.ts.net,
+# which the-hub (served over tailnet HTTPS) can frame without mixed content.
+# Waits for the node to be signed in, then applies a persistent `serve`.
+[Unit]
+Description=Publish Dishylink on the tailnet (tailscale serve)
+After=tailscaled.service dishylink.service
+Wants=tailscaled.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'until tailscale status >/dev/null 2>&1; do sleep 15; done; tailscale serve --bg http://127.0.0.1:8080'
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+# /etc/nftables.d/dishylink-origin.nft — own table, included from
+# /etc/nftables.conf. :4180 (oauth2-proxy) only from the tunnel connector and
+# loopback; :8080 (the unauthenticated dashboard) only from the LAN. Load with
+# `nft -f`, never `systemctl restart nftables` (that flushes the whole ruleset).
+table inet dishylink_origin {
+  chain input {
+    type filter hook input priority 0; policy accept;
+    iifname "lo" accept
+    tcp dport 4180 ip saddr 192.168.1.173 accept
+    tcp dport 4180 drop
+    tcp dport 8080 ip saddr 192.168.1.0/24 accept
+    tcp dport 8080 drop
+  }
+}

@@ -1,0 +1,25 @@
+# Dishylink browser host: the built dashboard, the dish/router proxies and the
+# history recorder, in one process. Listens on :8080 (LAN, unauthenticated —
+# the same reach the dish and router already give the LAN). The public
+# hostname goes through oauth2-proxy on :4180 instead.
+[Unit]
+Description=Dishylink dashboard and history recorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=dishylink
+Group=dishylink
+WorkingDirectory=/opt/dishylink
+EnvironmentFile=/etc/dishylink/dishylink.env
+ExecStart=/usr/bin/node --import tsx docker/browserHost.mts
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/dishylink
+
+[Install]
+WantedBy=multi-user.target

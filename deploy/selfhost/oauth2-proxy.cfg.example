@@ -1,0 +1,34 @@
+# /etc/oauth2-proxy/oauth2-proxy.cfg — the client and cookie secrets are NOT
+# here; they come from /etc/oauth2-proxy/secrets.env (mode 600) as
+# OAUTH2_PROXY_CLIENT_SECRET and OAUTH2_PROXY_COOKIE_SECRET.
+provider                = "keycloak-oidc"
+provider_display_name   = "Moate SSO"
+oidc_issuer_url         = "https://auth.example.com/realms/moate"
+client_id               = "dishylink"
+redirect_url            = "https://dishy.example.com/oauth2/callback"
+# Realm role granted through the app's group (kc-app.py grant dishylink <user>).
+# A role check needs no groups mapper or groups scope.
+allowed_roles           = ["dishylink-user"]
+email_domains           = ["*"]
+scope                   = "openid email profile"
+code_challenge_method   = "S256"
+http_address            = "0.0.0.0:4180"
+upstreams               = ["http://127.0.0.1:8080/"]
+reverse_proxy           = true
+# Only these may set X-Forwarded-*; this is NOT trusted_ips, which would skip
+# sign-in for them.
+trusted_proxy_ips       = ["192.168.1.173/32", "127.0.0.1/32"]
+skip_provider_button    = true
+whitelist_domains       = ["dishy.example.com"]
+cookie_secure           = true
+# A week, so the home-screen app doesn't bounce through sign-in daily. With a
+# minimal session cookie (needed: a full one passes 4 KB and splits) there is no
+# token refresh, so revoking someone in Keycloak only bites when this expires.
+cookie_expire           = "168h"
+session_cookie_minimal  = true
+cookie_csrf_per_request       = true
+cookie_csrf_per_request_limit = 5
+cookie_csrf_expire            = "1h"
+cookie_csrf_samesite          = "lax"
+# The manifest and icons must load before sign-in for "Add to Home Screen".
+skip_auth_routes        = ["GET=^/manifest\\.webmanifest$", "GET=^/icon/[0-9]+\\.png$", "GET=^/favicon\\.svg$"]
