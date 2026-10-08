@@ -1,7 +1,7 @@
 # Dishylink browser host: the built dashboard, the dish/router proxies and the
-# history recorder, in one process. Listens on :8080 (LAN, unauthenticated —
-# the same reach the dish and router already give the LAN). The public
-# hostname goes through oauth2-proxy on :4180 instead.
+# history recorder, in one process. Listens on :8080 with no sign-in, so it is
+# kept to the LAN (origin.nft) — the same reach the dish and router already
+# give the LAN — and the tailnet, via tailscale serve.
 [Unit]
 Description=Dishylink dashboard and history recorder
 After=network-online.target
