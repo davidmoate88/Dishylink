@@ -1,6 +1,8 @@
 // Sticky status strip: wordmark on the left; live connection state, dish
-// identity, alerts and the theme toggle on the right. Below 1080px the secondary
-// status readouts (country, uptime) drop so the strip stays on one line.
+// identity, alerts and the theme toggle on the right. On a phone the secondary
+// readouts (country, uptime) drop so the strip stays on one line, and the strip
+// turns opaque: content scrolls under it, and a fade over a narrow screen left
+// tile text showing through the wordmark.
 
 import { LaptopIcon } from "../../assets/icons/LaptopIcon";
 import { MoonIcon } from "../../assets/icons/MoonIcon";
@@ -68,24 +70,26 @@ export function TopBar({
   const ThemeIcon = THEME_ICON[theme];
 
   return (
-    <header className='sticky top-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-[color-mix(in_srgb,var(--page)_72%,transparent)] via-[color-mix(in_srgb,var(--page)_42%,transparent)] to-transparent px-6 pt-3.5 pb-4'>
-      <div className='flex min-w-0 items-center gap-[11px]'>
-        <AppLogo size={28} className='flex-none' />
-        <span className='text-[17px] font-bold tracking-[0.16em]'>Dishylink</span>
+    <header className='sticky top-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-[color-mix(in_srgb,var(--page)_72%,transparent)] via-[color-mix(in_srgb,var(--page)_42%,transparent)] to-transparent px-6 pt-3.5 pb-4 max-sm:gap-2 max-sm:bg-none max-sm:bg-[color-mix(in_srgb,var(--page)_88%,transparent)] max-sm:px-4 max-sm:pt-[max(env(safe-area-inset-top),10px)] max-sm:pb-2.5 max-sm:backdrop-blur-md'>
+      <div className='flex min-w-0 items-center gap-[11px] max-sm:gap-2'>
+        <AppLogo size={28} className='flex-none max-sm:size-6' />
+        <span className='text-[17px] font-bold tracking-[0.16em] max-sm:text-[15px] max-sm:tracking-[0.1em]'>
+          Dishylink
+        </span>
       </div>
-      <div className='flex flex-none flex-wrap items-center justify-end gap-3'>
+      <div className='flex flex-none flex-wrap items-center justify-end gap-3 max-sm:flex-nowrap max-sm:gap-2'>
         <div className='flex items-center gap-2.5'>
           <span className={statusItem}>
             <span className={`${statusDot} ${CONNECTION_DOT[connectionState]} `} />
             {CONNECTION_LABEL[connectionState]}
           </span>
           {status?.deviceInfo?.countryCode && (
-            <span className={`${statusItem} ${statusDivider}`}>
+            <span className={`${statusItem} ${statusDivider} max-sm:hidden`}>
               {status.deviceInfo.countryCode}
             </span>
           )}
           {status?.deviceState?.uptimeS && (
-            <span className={`${statusItem} ${statusDivider}`}>
+            <span className={`${statusItem} ${statusDivider} max-sm:hidden`}>
               up {formatUptime(Number(status.deviceState.uptimeS))}
             </span>
           )}

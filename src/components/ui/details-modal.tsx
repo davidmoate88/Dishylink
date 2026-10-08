@@ -20,7 +20,7 @@ import { ChevronLeftIcon } from "../../assets/icons/ChevronLeftIcon";
 
 const panel = cva(
   // [box-shadow:] rather than shadow-[]: the shadow utility composes with ring vars.
-  "bg-card rounded-[18px] pt-5 px-[22px] pb-[22px] [box-shadow:0_24px_80px_rgba(0,0,0,0.45)] animate-[rise_240ms_ease_both] outline-none",
+  "bg-card rounded-[18px] pt-5 px-[22px] pb-[22px] [box-shadow:0_24px_80px_rgba(0,0,0,0.45)] animate-[rise_240ms_ease_both] outline-none max-sm:px-4 max-sm:pt-4",
   {
     variants: {
       size: {
@@ -58,7 +58,7 @@ export function DetailsModal({ title, onClose, children, size, onBack }: Details
             backdrop stays the scroll container. */}
         <DialogPrimitive.Overlay
           data-slot='details-modal-overlay'
-          className='thin-scroll fixed inset-0 z-50 flex items-start justify-center overflow-y-auto pt-[6vh] pr-5 pb-10 pl-5'
+          className='thin-scroll fixed inset-0 z-50 flex items-start justify-center overflow-y-auto pt-[6vh] pr-5 pb-10 pl-5 max-sm:px-2 max-sm:pt-[max(env(safe-area-inset-top),8px)] max-sm:pb-[max(env(safe-area-inset-bottom),16px)]'
         >
           <DialogPrimitive.Content
             data-slot='details-modal'

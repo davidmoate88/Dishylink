@@ -108,6 +108,8 @@ export function SegmentedControl<T extends string>({
       {...commonRootProps}
       className={cn(
         "inline-flex overflow-hidden rounded-[999px] bg-[color-mix(in_srgb,var(--ink)_6%,var(--surface))]",
+        // A long range list (1H … Month) must not push a phone-width panel wider.
+        "max-sm:max-w-full max-sm:overflow-x-auto",
         className,
       )}
     >
@@ -116,7 +118,7 @@ export function SegmentedControl<T extends string>({
           key={option.value}
           value={option.value}
           data-slot='segmented-control-item'
-          className='cursor-pointer border-0 bg-transparent px-[13px] py-[5px] font-mono text-[10.5px] tracking-[0.06em] text-muted-foreground [transition:color_120ms_ease,background_120ms_ease] hover:text-foreground data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground'
+          className='flex-none cursor-pointer border-0 bg-transparent px-[13px] py-[5px] max-sm:px-[9px] max-sm:py-[6px] font-mono text-[10.5px] tracking-[0.06em] text-muted-foreground [transition:color_120ms_ease,background_120ms_ease] hover:text-foreground data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground'
         >
           {option.label}
         </ToggleGroupPrimitive.Item>

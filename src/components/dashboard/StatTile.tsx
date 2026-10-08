@@ -43,7 +43,9 @@ export function StatTile({
         {onOpenDetail && <span className='text-[16px] leading-none text-muted-foreground'>›</span>}
       </span>
       <div className='flex min-h-10 items-center gap-1.5'>
-        <span className='text-[34px] font-bold leading-none tracking-[-0.01em]'>{value}</span>
+        <span className='text-[34px] font-bold leading-none tracking-[-0.01em] max-sm:text-[30px]'>
+          {value}
+        </span>
         {unit && (
           <span className='self-end pb-[5px] text-[13px] font-medium text-muted-foreground'>
             {unit}
@@ -58,7 +60,9 @@ export function StatTile({
         )}
       </div>
       {caption && (
-        <span className='text-[11.5px] font-medium text-muted-foreground'>{caption}</span>
+        <span className='text-[11.5px] font-medium text-muted-foreground [overflow-wrap:anywhere]'>
+          {caption}
+        </span>
       )}
     </TileElement>
   );

@@ -58,7 +58,7 @@ function DockTile({
       onMouseEnter={() => onEnter(index)}
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className='group relative flex h-[34px] w-[46px] flex-none cursor-pointer items-end justify-center border-0 bg-transparent'
+      className='group relative flex h-[34px] w-[46px] flex-none cursor-pointer items-end justify-center border-0 bg-transparent max-sm:w-auto max-sm:min-w-0 max-sm:flex-1'
     >
       {/* The label floats clear above the icon that lifts under the pointer. */}
       <span className='pointer-events-none absolute bottom-[calc(100%+20px)] left-1/2 -translate-x-1/2 translate-y-1 rounded-[8px] border border-[color-mix(in_srgb,var(--ink)_12%,transparent)] bg-popover px-2.5 py-1 text-[11.5px] font-semibold whitespace-nowrap text-popover-foreground opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.45)] transition-[opacity,transform] duration-150 group-hover:translate-y-0 group-hover:opacity-100'>
@@ -109,7 +109,7 @@ export function ToolbarDock({ items, activeId, onSelect }: ToolbarDockProps) {
   };
 
   return (
-    <div className='fixed bottom-[25px] left-1/2 z-30 -translate-x-1/2'>
+    <div className='fixed bottom-[25px] left-1/2 z-30 -translate-x-1/2 max-sm:bottom-[max(env(safe-area-inset-bottom),12px)] max-sm:w-[calc(100%-24px)]'>
       <motion.nav
         aria-label='Dashboard sections'
         initial={{ opacity: 0, y: 26 }}
@@ -118,7 +118,7 @@ export function ToolbarDock({ items, activeId, onSelect }: ToolbarDockProps) {
         transition={{ type: "spring", stiffness: 360, damping: 30 }}
         onMouseMove={(event) => pointerX.set(event.clientX)}
         onMouseLeave={leave}
-        className='relative flex items-end gap-2 rounded-full border border-[color-mix(in_srgb,var(--ink)_12%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_16%,transparent)] px-3.5 pt-2.5 pb-2.5 shadow-[0_4px_14px_rgba(0,0,0,0.20),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[7px] transition-[background-color,backdrop-filter] duration-200 hover:bg-[color-mix(in_srgb,var(--surface-raised)_80%,transparent)] hover:backdrop-blur-[26px] hover:backdrop-saturate-[150%]'
+        className='relative flex items-end gap-2 rounded-full border max-sm:justify-between max-sm:gap-0 max-sm:bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] max-sm:px-2 max-sm:backdrop-blur-[18px] border-[color-mix(in_srgb,var(--ink)_12%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_16%,transparent)] px-3.5 pt-2.5 pb-2.5 shadow-[0_4px_14px_rgba(0,0,0,0.20),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[7px] transition-[background-color,backdrop-filter] duration-200 hover:bg-[color-mix(in_srgb,var(--surface-raised)_80%,transparent)] hover:backdrop-blur-[26px] hover:backdrop-saturate-[150%]'
       >
         {items.map((item, index) => (
           <DockTile

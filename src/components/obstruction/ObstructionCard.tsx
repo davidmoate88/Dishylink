@@ -71,7 +71,7 @@ export function ObstructionCard({
         <span className='text-[16px] font-semibold tracking-[0.005em]'>Obstructions</span>
         {/* The chrome layer lets clicks through to the scene behind it, so each
             control has to claim its own. */}
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-3 max-sm:gap-2'>
           <span className='pointer-events-auto'>
             <SkyControl
               label={rotating ? "Pause rotation" : "Resume rotation"}
@@ -91,10 +91,11 @@ export function ObstructionCard({
             </SkyControl>
           </span>
           <button
-            className='pointer-events-auto cursor-pointer border-0 bg-transparent p-0 font-sans text-[13px] font-semibold text-(--accent) transition-[color,opacity] duration-120 hover:opacity-75'
+            className='pointer-events-auto cursor-pointer border-0 bg-transparent p-0 font-sans text-[13px] font-semibold whitespace-nowrap text-(--accent) transition-[color,opacity] duration-120 hover:opacity-75'
             onClick={onOpenSatelliteView}
           >
-            Live satellite view ›
+            <span className='max-sm:hidden'>Live satellite view</span>
+            <span className='sm:hidden'>Satellites</span> ›
           </button>
         </div>
       </div>

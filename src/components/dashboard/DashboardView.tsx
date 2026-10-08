@@ -213,11 +213,11 @@ export function DashboardView({
   ];
 
   return (
-    <main className='mx-auto flex max-w-[1400px] flex-col gap-3.5 px-6 pt-3.5 pb-20 animate-[rise_400ms_ease_both]'>
+    <main className='mx-auto flex max-w-[1400px] flex-col gap-3.5 px-6 pt-3.5 pb-20 animate-[rise_400ms_ease_both] max-sm:gap-3 max-sm:px-3 max-sm:pt-2 max-sm:pb-[calc(96px+env(safe-area-inset-bottom))]'>
       <AppPrompts />
 
       {/* Stat tiles */}
-      <section className='grid grid-cols-6 gap-3.5 max-[1080px]:grid-cols-3'>
+      <section className='grid grid-cols-6 gap-3.5 max-[1080px]:grid-cols-3 max-sm:grid-cols-2 max-sm:gap-3'>
         {statTiles.map((tile) => (
           <StatTile key={tile.label} {...tile} />
         ))}
