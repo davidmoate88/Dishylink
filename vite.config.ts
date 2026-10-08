@@ -57,6 +57,20 @@ export default defineConfig(({ command }) => ({
   // as iife by default, which can't do the top-level await that build uses.
   // Emit workers as ES modules so the production build succeeds.
   worker: { format: "es" },
+  // The browser build also ships embed.html, the framable summary card for home
+  // dashboards; the desktop app and extension have no use for it.
+  ...(withElectron
+    ? {}
+    : {
+        build: {
+          rollupOptions: {
+            input: {
+              main: path.resolve(__dirname, "index.html"),
+              embed: path.resolve(__dirname, "embed.html"),
+            },
+          },
+        },
+      }),
   test: {
     projects: [
       // Pure logic — decoders, stores, catalogues. No DOM, no browser, fast.

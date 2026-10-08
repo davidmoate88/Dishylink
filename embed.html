@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dishylink summary</title>
+    <!--
+      A compact, framable summary card for home dashboards. It reads only what the
+      history recorder has already stored (/api/*), never the dish or router, so an
+      embed left open all day adds no load to either. Clicking it opens the full
+      dashboard in the top window.
+
+      Query parameters:
+        open     URL the card links to (http/https only; default "/")
+        theme    dark | light | system (default system)
+        minutes  sparkline window, 5–60 (default 15)
+    -->
+    <style>
+      :root {
+        --page: #000000;
+        --surface: #0c0c0c;
+        --line: #262626;
+        --ink: #ffffff;
+        --ink-muted: #8a8a8a;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --bad: #f87171;
+        --idle: #737373;
+        --down: #60a5fa;
+        color-scheme: dark;
+      }
+      :root[data-theme="light"] {
+        --page: #ffffff;
+        --surface: #f6f6f6;
+        --line: #e2e2e2;
+        --ink: #0a0a0a;
+        --ink-muted: #6b6b6b;
+        --ok: #059669;
+        --warn: #b45309;
+        --bad: #dc2626;
+        --idle: #8a8a8a;
+        --down: #2563eb;
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--page);
+        color: var(--ink);
+        font:
+          14px/1.3 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      a.card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        height: 100%;
+        padding: 12px 14px;
+        color: inherit;
+        text-decoration: none;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      a.card:hover {
+        border-color: var(--ink-muted);
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--idle);
+        flex: none;
+      }
+      .title {
+        font-weight: 600;
+      }
+      .state {
+        color: var(--ink-muted);
+      }
+      .age {
+        margin-left: auto;
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .tile .label {
+        color: var(--ink-muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .tile .value {
+        font-size: 18px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .tile .unit {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--ink-muted);
+        margin-left: 2px;
+      }
+      svg.spark {
+        width: 100%;
+        height: 40px;
+        flex: 1 1 40px;
+        min-height: 28px;
+      }
+      .foot {
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+      @media (max-width: 340px) {
+        .tiles {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+    <script>
+      (function () {
+        var theme = new URLSearchParams(location.search).get("theme") || "system";
+        if (theme === "system") {
+          theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="card" id="card" target="_top" href="/">
+      <div class="head">
+        <span class="dot" id="dot"></span>
+        <span class="title">Starlink</span>
+        <span class="state" id="state">Loading…</span>
+        <span class="age" id="age"></span>
+      </div>
+      <div class="tiles">
+        <div class="tile">
+          <div class="label">Down</div>
+          <div class="value" id="down">–</div>
+        </div>
+        <div class="tile">
+          <div class="label">Up</div>
+          <div class="value" id="up">–</div>
+        </div>
+        <div class="tile">
+          <div class="label">Latency</div>
+          <div class="value" id="latency">–</div>
+        </div>
+        <div class="tile">
+          <div class="label">Ping OK</div>
+          <div class="value" id="ping">–</div>
+        </div>
+      </div>
+      <svg
+        class="spark"
+        id="spark"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <polyline
+          id="sparkLine"
+          fill="none"
+          stroke="var(--down)"
+          stroke-width="1.5"
+          vector-effect="non-scaling-stroke"
+          points=""
+        />
+      </svg>
+      <div class="foot" id="foot"></div>
+    </a>
+    <script type="module" src="/src/embed/main.ts"></script>
+  </body>
+</html>
